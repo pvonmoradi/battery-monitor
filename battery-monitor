@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Author: Pooya Moradi
-# Date : 2022-08-27 | 1401-06-05
+# Date : 2022-08-27
+# License: MIT
 #
 # Description: plot power consumption of batteries of the laptop.
 # Dependencies: feedgnuplot, yad, awk
@@ -32,7 +33,7 @@ OPTIONS
         Graph window width in seconds
         Default: 30
     [-V] :
-        Print version 
+        Print version
     [-h] :
         Display the help message
 
