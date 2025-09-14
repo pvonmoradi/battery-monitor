@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Author: Pooya Moradi
+# Date : 2022-08-27 | 1401-06-05
+#
+# Description: Plot power consumption of batteries of the laptop.
+# Dependencies: feedgnuplot, yad, awk
+
+# enforce run of only a single instance of the script
+lockfile="${TMPDIR:-/tmp}/battery-monitor.lock"
+if ! mkdir -- "$lockfile"; then
+    printf >&2 "[ERROR] another instance is running.\n"
+    exit 1
+fi
+
+version=0.3
+period="1"
+window="30"
+gnuplot_terminal="qt font 'monospace,10'"
+# gnuplot_terminal="x11 font 'Inconsolata,10'"
+
+show_help() {
+    cat << EOF
+Usage: battery-monitor [-t PERIOD] [-w WIDTH] [-V] [-h]
+DESCRIPTION
+    Plot power consumption [Watt] of batteries
+
+OPTIONS
+    [-t PERIOD] :
+        Sampling period in seconds
+        Default: 1
+    [-w WIDTH] :
+        Graph window width in seconds
+        Default: 30
+    [-V] :
+        Print version 
+    [-h] :
+        Display the help message
+
+EXAMPLES
+    # graph power consumption wattage for sampling period of 0.5 seconds and
+    # window of 4 seconds
+    battery-monitor -t 0.5 -w 4
+EOF
+}
+
+cleanup() {
+    if [[ -e /dev/fd/3 ]]; then
+        printf "quit\n" >&3
+        exec >&3-
+    fi
+    rm -rf -- "$lockfile"
+    trap '' SIGTERM
+    pkill -P $$
+}
+trap "cleanup" EXIT
+
+check_deps() {
+    local err=0
+    for app in "$@"; do
+        if ! command -v "$app" &> /dev/null; then
+            printf >&2 "[ERROR] dependency '%s' not found.\n" "$app"
+            err=1
+        fi
+    done
+    return "$err"
+}
+
+while getopts t:w:Vh opt; do
+    case $opt in
+        h)
+            show_help
+            exit 0
+            ;;
+        V)
+            printf "%s\n" "$version"
+            exit 0
+            ;;
+        t)
+            period="$OPTARG"
+            ;;
+        w)
+            window="$OPTARG"
+            ;;
+        *)
+            printf >&2 "[ERROR] Bad usage!\n"
+            show_help >&2
+            exit 2
+            ;;
+    esac
+done
+shift "$((OPTIND - 1))"
+
+# check dependencies
+check_deps feedgnuplot yad || exit 1
+
+# start yad notification tray
+exec 3> >(yad --notification --no-middle --listen \
+    --image="battery" --text="battery-monitor")
+printf "%s|\n" \
+    "menu:Quit!sh -c 'kill $$'!application-exit" \
+    >&3
+
+# produce data with cat and consume with feedgnuplot
+while true; do
+    # convert p1\np2 to p1,p2, then divide by 1e6 to convert to Watts
+    line=$(cat /sys/class/power_supply/{BAT0,BAT1}/power_now \
+        | paste --serial --delimiters=',' \
+        | awk -F ',' '{print $1/1e6, $2/1e6}')
+    printf "tooltip: %s\n" "$line" >&3
+    printf "%s\n" "$line"
+    sleep "$period"
+done \
+    | feedgnuplot --stream "$period" --xlen "$window" \
+        --lines --set "ylabel 'Power consumption [Watt]'" \
+        --legend 0 "BAT0" --legend 1 "BAT1" --set 'key bottom left' \
+        --styleall 'with lines linewidth 3' \
+        --terminal "$gnuplot_terminal" \
+        --exit
