@@ -10,7 +10,7 @@ graph window floating, sticky and small.
   <img width="400" src="docs/battery-monitor.gif">
 </p>
 
-Useful for cases when you want to be mindful of what particular sitations or
+Useful for cases when you want to be mindful of what particular situations or
 programs increase power consumption. For example in the screencast above, the
 laptop was on battery for a while, then we see a power surge which was due to
 running a computing-intensive program.
@@ -35,7 +35,7 @@ sudo apt install feedgnuplot libvnlog-perl
 Check `battery-monitor -h`:
 
 ```console
-$ imroo -h
+$ battery-monitor -h
 Usage: battery-monitor [-t PERIOD] [-w WIDTH] [-V] [-h]
 DESCRIPTION
     Plot power consumption [Watt] of batteries
